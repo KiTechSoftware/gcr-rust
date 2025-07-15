@@ -21,6 +21,10 @@ RUN cargo install \
     cargo-deb \
     cargo-generate-rpm
 
+# Copy Scripts
+COPY scripts/* /usr/local/bin/
+RUN chmod +x /usr/local/bin/*
+
 # Set working directory
 WORKDIR /usr/src/app
 
