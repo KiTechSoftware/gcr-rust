@@ -5,6 +5,7 @@ LABEL org.opencontainers.image.source="https://github.com/KiTechSoftware/gcr-rus
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    bash \
     git \
     libssl-dev \
     pkg-config \
