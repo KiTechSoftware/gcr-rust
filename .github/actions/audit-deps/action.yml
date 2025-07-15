@@ -1,0 +1,20 @@
+name: Run cargo audit
+description: Run cargo-audit with summary reporting
+author: KiTech Software
+inputs:
+  no-fail:
+    description: "Run audit but do not fail on vulnerabilities"
+    required: false
+    default: "false"
+runs:
+  using: "docker"
+  image: "ghcr.io/kitechsoftware/gcr-rust:latest"
+  args:
+    - bash
+    - -c
+    - |
+      if [[ "${{ inputs.no-fail }}" == "true" ]]; then
+        audit-deps.sh --no-fail
+      else
+        audit-deps.sh
+      fi

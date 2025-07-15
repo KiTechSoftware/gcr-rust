@@ -19,7 +19,13 @@ RUN cargo install \
     cargo-geiger \
     cargo-deny \
     cargo-deb \
-    cargo-generate-rpm
+    cargo-generate-rpm \
+    cargo-nextest \
+    cargo-outdated \
+    cargo-bloat \
+    cargo-tarpaulin
+
+RUN rustup component add clippy rustfmt
 
 # Copy Scripts
 COPY scripts/* /usr/local/bin/

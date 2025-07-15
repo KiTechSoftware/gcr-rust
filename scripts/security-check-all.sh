@@ -7,24 +7,76 @@ if [[ "$1" == "--no-fail" ]]; then
 fi
 
 SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/summary.txt}"
+ARTIFACT_FILE="security-summary.md"
 
-echo "## 🔐 Rust Security Checks" >> "$SUMMARY_FILE"
-echo "" >> "$SUMMARY_FILE"
-echo "_This summary includes results from audit, deny, and unsafe code scans._" >> "$SUMMARY_FILE"
-echo "" >> "$SUMMARY_FILE"
-echo "---" >> "$SUMMARY_FILE"
+# Clean previous output
+: > "$SUMMARY_FILE"
+: > "$ARTIFACT_FILE"
 
-# Run individual tools
-echo "### 📦 Dependency Vulnerability Scan (cargo audit)" >> "$SUMMARY_FILE"
-audit-deps.sh $NO_FAIL_ARG
+# Track overall results
+AUDIT_RESULT="✅"
+DENY_RESULT="✅"
+UNSAFE_RESULT="✅"
 
-echo "---" >> "$SUMMARY_FILE"
-echo "### 📋 Dependency Policy Check (cargo deny)" >> "$SUMMARY_FILE"
-cargo-deny.sh $NO_FAIL_ARG
+header() {
+    echo -e "$1\n" >> "$SUMMARY_FILE"
+    echo -e "$1\n" >> "$ARTIFACT_FILE"
+}
 
-echo "---" >> "$SUMMARY_FILE"
-echo "### 🧯 Unsafe Code Detection (cargo geiger)" >> "$SUMMARY_FILE"
-unsafe-scan.sh $NO_FAIL_ARG
+divider() {
+    echo "---" >> "$SUMMARY_FILE"
+    echo "---" >> "$ARTIFACT_FILE"
+}
 
-echo "---" >> "$SUMMARY_FILE"
-echo "✅ All security checks completed." >> "$SUMMARY_FILE"
+append_file() {
+    cat "$1" >> "$SUMMARY_FILE"
+    cat "$1" >> "$ARTIFACT_FILE"
+}
+
+write_summary_line() {
+    echo "$1" >> "$SUMMARY_FILE"
+    echo "$1" >> "$ARTIFACT_FILE"
+}
+
+### Top-Level Summary Header
+header "## 🔐 Rust Security Checks"
+write_summary_line "_This summary includes results from audit, deny, and unsafe code scans._"
+write_summary_line ""
+
+### Cargo Audit
+divider
+header "### 📦 Dependency Vulnerability Scan (cargo audit)"
+
+audit-deps.sh $NO_FAIL_ARG || AUDIT_RESULT="❗"
+
+append_file "audit-output.txt"
+
+### Cargo Deny
+divider
+header "### 📋 Dependency Policy Check (cargo deny)"
+
+cargo-deny.sh $NO_FAIL_ARG || DENY_RESULT="❌"
+
+append_file "deny-output.txt"
+
+### Unsafe Scan
+divider
+header "### 🧯 Unsafe Code Detection (cargo geiger)"
+
+unsafe-scan.sh $NO_FAIL_ARG || UNSAFE_RESULT="⚠️"
+
+append_file "geiger-output.txt"
+
+### Final Summary Block
+divider
+header "### 🧾 Final Summary"
+
+write_summary_line "| Check                 | Status |"
+write_summary_line "|-----------------------|--------|"
+write_summary_line "| Cargo Audit           | $AUDIT_RESULT |"
+write_summary_line "| Cargo Deny            | $DENY_RESULT |"
+write_summary_line "| Unsafe Code Detection | $UNSAFE_RESULT |"
+
+divider
+write_summary_line "✅ Security checks completed."
+

@@ -1,0 +1,20 @@
+name: Run Unsafe Code Scan
+description: Run cargo-outdated to detect unsafe Rust code
+author: KiTech Software
+inputs:
+  no-fail:
+    description: "Do not fail on unsafe code"
+    required: false
+    default: "false"
+runs:
+  using: "docker"
+  image: "ghcr.io/kitechsoftware/gcr-rust:latest"
+  args:
+    - bash
+    - -c
+    - |
+      if [[ "${{ inputs.no-fail }}" == "true" ]]; then
+        outdated-deps.sh --no-fail
+      else
+        outdated-deps.sh
+      fi

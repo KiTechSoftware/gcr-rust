@@ -1,0 +1,20 @@
+name: Run Bloat Report with gcr-rust
+description: Runs cargo-clippy using the gcr-rust Docker image
+author: KiTech Software
+inputs:
+  no-fail:
+    description: "Run script with --no-fail"
+    required: false
+    default: "false"
+runs:
+  using: "docker"
+  image: "ghcr.io/kitechsoftware/gcr-rust:latest"
+  args:
+    - bash
+    - -c
+    - |
+      if [[ "${{ inputs.no-fail }}" == "true" ]]; then
+        clippy-check.sh --no-fail
+      else
+        clippy-check.sh
+      fi
