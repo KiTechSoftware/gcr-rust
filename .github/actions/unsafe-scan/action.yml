@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        unsafe-scan.sh --no-fail
+        unsafe-scan --no-fail
       else
-        unsafe-scan.sh
+        unsafe-scan
       fi

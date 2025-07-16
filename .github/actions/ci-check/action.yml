@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        ci-check-all.sh --no-fail
+        ci-check --no-fail
       else
-        ci-check-all.sh
+        ci-check
       fi

@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        nextest.sh --no-fail
+        nextest --no-fail
       else
-        nextest.sh
+        nextest
       fi

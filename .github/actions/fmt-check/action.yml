@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        fmt-check.sh --no-fail
+        fmt-check --no-fail
       else
-        fmt-check.sh
+        fmt-check
       fi

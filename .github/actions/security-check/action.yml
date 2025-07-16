@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        security-check-all.sh --no-fail
+        security-check --no-fail
       else
-        security-check-all.sh
+        security-check
       fi

@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        cargo-deny.sh --no-fail
+        cargo-deny --no-fail
       else
-        cargo-deny.sh
+        cargo-deny
       fi

@@ -47,7 +47,7 @@ write_summary_line ""
 divider
 header "### 📦 Dependency Vulnerability Scan (cargo audit)"
 
-audit-deps.sh $NO_FAIL_ARG || AUDIT_RESULT="❗"
+audit-deps $NO_FAIL_ARG || AUDIT_RESULT="❗"
 
 append_file "audit-output.txt"
 
@@ -55,7 +55,7 @@ append_file "audit-output.txt"
 divider
 header "### 📋 Dependency Policy Check (cargo deny)"
 
-cargo-deny.sh $NO_FAIL_ARG || DENY_RESULT="❌"
+cargo-deny $NO_FAIL_ARG || DENY_RESULT="❌"
 
 append_file "deny-output.txt"
 
@@ -63,7 +63,7 @@ append_file "deny-output.txt"
 divider
 header "### 🧯 Unsafe Code Detection (cargo geiger)"
 
-unsafe-scan.sh $NO_FAIL_ARG || UNSAFE_RESULT="⚠️"
+unsafe-scan $NO_FAIL_ARG || UNSAFE_RESULT="⚠️"
 
 append_file "geiger-output.txt"
 

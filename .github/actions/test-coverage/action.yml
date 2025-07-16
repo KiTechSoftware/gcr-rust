@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        coverage.sh --no-fail
+        test-coverage --no-fail
       else
-        coverage.sh
+        test-coverage
       fi

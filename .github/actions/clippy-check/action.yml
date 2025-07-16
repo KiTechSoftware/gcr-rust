@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        clippy-check.sh --no-fail
+        clippy-check --no-fail
       else
-        clippy-check.sh
+        clippy-check
       fi

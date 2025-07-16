@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        bloat-report.sh --no-fail
+        bloat-report --no-fail
       else
-        bloat-report.sh
+        bloat-report
       fi

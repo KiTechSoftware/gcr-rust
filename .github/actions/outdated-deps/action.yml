@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        outdated-deps.sh --no-fail
+        outdated-deps --no-fail
       else
-        outdated-deps.sh
+        outdated-deps
       fi

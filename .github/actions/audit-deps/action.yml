@@ -14,7 +14,7 @@ runs:
     - -c
     - |
       if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        audit-deps.sh --no-fail
+        audit-deps --no-fail
       else
-        audit-deps.sh
+        audit-deps
       fi

@@ -52,15 +52,15 @@ run_step() {
     divider
 }
 
-run_step "📦 Dependency Audit (cargo audit)" audit-deps.sh
-run_step "📋 License & Advisory Policy (cargo deny)" cargo-deny.sh
-run_step "🧯 Unsafe Code Check (cargo geiger)" unsafe-scan.sh
+run_step "📦 Dependency Audit (cargo audit)" audit-deps
+run_step "📋 License & Advisory Policy (cargo deny)" cargo-deny
+run_step "🧯 Unsafe Code Check (cargo geiger)" unsafe-scan
 
-run_step "🔍 Clippy (Rust Linter)" clippy-check.sh
-run_step "🧹 rustfmt (Code Formatting Check)" fmt-check.sh
+run_step "🔍 Clippy (Rust Linter)" clippy-check
+run_step "🧹 rustfmt (Code Formatting Check)" fmt-check
 
-run_step "🧪 Tests (cargo nextest)" nextest.sh
-run_step "📊 Test Coverage (cargo tarpaulin)" coverage.sh
+run_step "🧪 Tests (cargo nextest)" nextest
+run_step "📊 Test Coverage (cargo tarpaulin)" test-coverage
 
 # Final summary
 echo "✅ CI check completed. See above for results." >> "$SUMMARY_FILE"
