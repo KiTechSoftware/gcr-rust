@@ -7,14 +7,12 @@ inputs:
     required: false
     default: "false"
 runs:
-  using: "docker"
-  image: "docker://ghcr.io/kitechsoftware/gcr-rust:latest"
-  args:
-    - bash
-    - -c
-    - |
-      if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        audit-deps --no-fail
-      else
-        audit-deps
-      fi
+  using: "composite"
+  steps:
+    - run: |
+        if [[ "${{ inputs.no-fail }}" == "true" ]]; then
+          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest audit-deps --no-fail
+        else
+          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest audit-deps
+        fi
+      shell: bash
