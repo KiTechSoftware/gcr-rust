@@ -1,25 +1,64 @@
 #!/usr/bin/env bash
 set -e
 
+STATUS=0
 NO_FAIL=false
-if [[ "$1" == "--no-fail" ]]; then
-    NO_FAIL=true
-fi
+NO_GITHUB=false
+OUTPUT_FILE="cargo-deny-output.txt"
+SUMMARY_FILE="cargo-deny-output.md"
 
-SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/summary.txt}"
-OUTPUT_FILE="deny-output.txt"
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-fail)
+            NO_FAIL=true
+            shift
+            ;;
+        --no-github)
+            NO_GITHUB=true
+            shift
+            ;;
+        --output)
+            OUTPUT_FILE="$2"
+            if [[ "$OUTPUT_FILE" == *.txt ]]; then
+                SUMMARY_FILE="${OUTPUT_FILE%.txt}.md"
+            else
+                SUMMARY_FILE="${OUTPUT_FILE}.md"
+            fi
+            shift 2
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
 
-echo "### 📋 Cargo Deny Policy Check" >> "$SUMMARY_FILE"
+# Cleanup old files
+[ -f "$SUMMARY_FILE" ] && rm "$SUMMARY_FILE"
+[ -f "$OUTPUT_FILE" ] && rm "$OUTPUT_FILE"
 
-echo '```' >> "$OUTPUT_FILE"
-cargo deny check >> "$OUTPUT_FILE" 2>&1 || true
-echo '```' >> "$OUTPUT_FILE"
+# Run cargo deny
+cargo deny check 2>&1 | tee -a "$OUTPUT_FILE"
 
+# Generate summary
+echo "### 📋 License & Advisory Policy (cargo deny)" >> "$SUMMARY_FILE"
+echo '```' >> "$SUMMARY_FILE"
 cat "$OUTPUT_FILE" >> "$SUMMARY_FILE"
+echo '```' >> "$SUMMARY_FILE"
+echo "" >> "$SUMMARY_FILE"
 
+# Check for policy violations
 if grep -q "error" "$OUTPUT_FILE"; then
     echo "❌ Policy violations detected by cargo-deny." >> "$SUMMARY_FILE"
-    $NO_FAIL || exit 1
+    $NO_FAIL || STATUS=1
 else
     echo "✅ All dependency policies passed." >> "$SUMMARY_FILE"
 fi
+
+# Append to GitHub Actions step summary if enabled
+if [ "$NO_GITHUB" = false ] && [ -f "$GITHUB_STEP_SUMMARY" ]; then
+    cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+fi
+
+exit $STATUS

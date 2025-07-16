@@ -1,69 +1,90 @@
 #!/usr/bin/env bash
 set -e
 
-NO_FAIL_ARG=""
-if [[ "$1" == "--no-fail" ]]; then
-    NO_FAIL_ARG="--no-fail"
-fi
+STATUS=0
+SCRIPT_STATUS=0
+NO_FAIL=false
+NO_GITHUB=false
+ARTIFACT_FILE="ci-artifact.md"
+TMP_OUTPUT_NAME="tmp-ci-output"
+for arg in "$@"; do
+    if [[ "$arg" == "--no-fail" ]]; then
+        NO_FAIL=true
+    elif [[ "$arg" == "--no-github" ]]; then
+        NO_GITHUB=true
+    fi
+done
 
-SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/ci-summary.md}"
-ARTIFACT_FILE="ci-summary.md"
-
-# Clean previous output
-: > "$SUMMARY_FILE"
-: > "$ARTIFACT_FILE"
-
-CI_STATUS=0
-
-section_header() {
-    echo "### $1" >> "$SUMMARY_FILE"
-    echo "### $1" >> "$ARTIFACT_FILE"
-}
+# Cleanup old files
+[ -f "$ARTIFACT_FILE" ] && rm "$ARTIFACT_FILE"
 
 append_output() {
-    echo '```' >> "$SUMMARY_FILE"
-    echo '```' >> "$ARTIFACT_FILE"
-    cat "$1" >> "$SUMMARY_FILE"
-    cat "$1" >> "$ARTIFACT_FILE"
-    echo '```' >> "$SUMMARY_FILE"
-    echo '```' >> "$ARTIFACT_FILE"
+    echo "$1" >> "$ARTIFACT_FILE"
 }
-
+append_file_output() {
+    cat "$1" >> "$ARTIFACT_FILE"
+}
+line_break() {
+    echo "" >> "$ARTIFACT_FILE"
+}
 divider() {
-    echo "---" >> "$SUMMARY_FILE"
     echo "---" >> "$ARTIFACT_FILE"
 }
 
-# Start summary
-echo "## 🔧 Full CI Check Report" >> "$SUMMARY_FILE"
-echo "## 🔧 Full CI Check Report" >> "$ARTIFACT_FILE"
-echo "_Includes security, linting, tests, and formatting checks._" >> "$SUMMARY_FILE"
-echo "_Includes security, linting, tests, and formatting checks._" >> "$ARTIFACT_FILE"
-divider
-
-# Run tools
-run_step() {
-    local label="$1"
-    local script="$2"
-    section_header "$label"
-    if ! $script $NO_FAIL_ARG; then
-        CI_STATUS=1
+run_script() {
+    local script="$1"
+    # Cleanup old temporary files
+    [ -f "$TMP_OUTPUT_NAME.md" ] && rm "$TMP_OUTPUT_NAME.md"
+    [ -f "$TMP_OUTPUT_NAME.txt" ] && rm "$TMP_OUTPUT_NAME.txt"
+    # run the script and return exit status
+    SCRIPT_STATUS=$($script --output "$TMP_OUTPUT_NAME")
+    append_file_output "$TMP_OUTPUT_NAME.md"
+    # if the script failed, update the overall status
+    if [ $SCRIPT_STATUS -ne 0 ]; then
+        STATUS=$SCRIPT_STATUS
     fi
-    divider
 }
 
-run_step "📦 Dependency Audit (cargo audit)" audit-deps
-run_step "📋 License & Advisory Policy (cargo deny)" cargo-deny
-run_step "🧯 Unsafe Code Check (cargo geiger)" unsafe-scan
+# Start summary
+append_output "## 🔧 Full CI Check Report"
+line_break
+append_output "_Includes security, linting, tests, and formatting checks._"
+line_break
+divider
+line_break
 
-run_step "🔍 Clippy (Rust Linter)" clippy-check
-run_step "🧹 rustfmt (Code Formatting Check)" fmt-check
+# Run tools
+run_script audit-deps
+line_break
+divider
+run_script cargo-deny
+line_break
+divider
+run_script unsafe-scan
+line_break
+divider
+run_script clippy-check
+line_break
+divider
+run_script fmt-check
+line_break
+divider
+run_script nextest
+line_break
+divider
+run_script test-coverage
+line_break
 
-run_step "🧪 Tests (cargo nextest)" nextest
-run_step "📊 Test Coverage (cargo tarpaulin)" test-coverage
 
 # Final summary
-echo "✅ CI check completed. See above for results." >> "$SUMMARY_FILE"
-echo "✅ CI check completed. See above for results." >> "$ARTIFACT_FILE"
+if [ $STATUS -ne 0 ] && [ $NO_FAIL = false ]; then
+    echo "❌ CI check failed. See above for details." >> "$ARTIFACT_FILE"
+else
+    echo "✅ CI check completed. See above for results." >> "$ARTIFACT_FILE"
+fi
 
-exit $CI_STATUS
+if [ -f "$GITHUB_STEP_SUMMARY" ]; then
+    cat "$GITHUB_STEP_SUMMARY" >> "$ARTIFACT_FILE"
+fi
+
+exit $STATUS

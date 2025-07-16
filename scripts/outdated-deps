@@ -1,13 +1,59 @@
 #!/usr/bin/env bash
 set -e
 
-SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/summary.txt}"
+STATUS=0
+NO_FAIL=false
+NO_GITHUB=false
 OUTPUT_FILE="outdated-output.txt"
+SUMMARY_FILE="outdated-output.md"
 
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-fail)
+            NO_FAIL=true
+            shift
+            ;;
+        --no-github)
+            NO_GITHUB=true
+            shift
+            ;;
+        --output)
+            OUTPUT_FILE="$2"
+            # Only override SUMMARY_FILE if GITHUB_STEP_SUMMARY is not set
+            if [[ -z "$GITHUB_STEP_SUMMARY" ]]; then
+                if [[ "$OUTPUT_FILE" == *.txt ]]; then
+                    SUMMARY_FILE="${OUTPUT_FILE%.txt}.md"
+                else
+                    SUMMARY_FILE="${OUTPUT_FILE}.md"
+                fi
+            fi
+            shift 2
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Cleanup old files
+[ -f "$SUMMARY_FILE" ] && rm "$SUMMARY_FILE"
+[ -f "$OUTPUT_FILE" ] && rm "$OUTPUT_FILE"
+
+# Run cargo outdated
+cargo outdated 2>&1 | tee -a "$OUTPUT_FILE"
+
+# Write summary header
 echo "### 🧓 Dependency Update Check (cargo outdated)" >> "$SUMMARY_FILE"
-
+echo "" >> "$SUMMARY_FILE"
 echo '```' >> "$OUTPUT_FILE"
-cargo outdated >> "$OUTPUT_FILE" 2>&1 || true
-echo '```' >> "$OUTPUT_FILE"
-
 cat "$OUTPUT_FILE" >> "$SUMMARY_FILE"
+echo '```' >> "$OUTPUT_FILE"
+
+# Append to GitHub summary if enabled
+if [ "$NO_GITHUB" = false ] && [ -f "$GITHUB_STEP_SUMMARY" ]; then
+    cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+fi
+
+exit $STATUS

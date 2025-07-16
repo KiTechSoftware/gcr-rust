@@ -1,13 +1,57 @@
 #!/usr/bin/env bash
 set -e
 
-SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/summary.txt}"
+STATUS=0
+NO_FAIL=false
+NO_GITHUB=false
 OUTPUT_FILE="bloat-output.txt"
+SUMMARY_FILE="bloat-output.md"
 
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-fail)
+            NO_FAIL=true
+            shift
+            ;;
+        --no-github)
+            NO_GITHUB=true
+            shift
+            ;;
+        --output)
+            OUTPUT_FILE="$2"
+            # Derive SUMMARY_FILE from OUTPUT_FILE if it ends in .txt
+            if [[ "$OUTPUT_FILE" == *.txt ]]; then
+                SUMMARY_FILE="${OUTPUT_FILE%.txt}.md"
+            else
+                SUMMARY_FILE="${OUTPUT_FILE}.md"
+            fi
+            shift 2
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Cleanup old files
+[ -f "$SUMMARY_FILE" ] && rm "$SUMMARY_FILE"
+[ -f "$OUTPUT_FILE" ] && rm "$OUTPUT_FILE"
+
+# Run cargo bloat
+cargo bloat --release --crates 2>&1 | tee -a "$OUTPUT_FILE"
+
+# Create summary
 echo "### 📦 Binary Size Analysis (cargo bloat)" >> "$SUMMARY_FILE"
-
-echo '```' >> "$OUTPUT_FILE"
-cargo bloat --release --crates >> "$OUTPUT_FILE" 2>&1 || true
-echo '```' >> "$OUTPUT_FILE"
-
+echo "" >> "$SUMMARY_FILE"
+echo '```bash' >> "$SUMMARY_FILE"
 cat "$OUTPUT_FILE" >> "$SUMMARY_FILE"
+echo '```' >> "$SUMMARY_FILE"
+
+# Optional: Add GitHub step summary
+if [ "$NO_GITHUB" = false ] && [ -f "$GITHUB_STEP_SUMMARY" ]; then
+    cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+fi
+
+exit $STATUS

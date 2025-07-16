@@ -1,25 +1,65 @@
 #!/usr/bin/env bash
 set -e
 
+STATUS=0
 NO_FAIL=false
-if [[ "$1" == "--no-fail" ]]; then
-    NO_FAIL=true
-fi
-
-SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/summary.txt}"
+NO_GITHUB=false
 OUTPUT_FILE="fmt-output.txt"
+SUMMARY_FILE="fmt-output.md"
 
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-fail)
+            NO_FAIL=true
+            shift
+            ;;
+        --no-github)
+            NO_GITHUB=true
+            shift
+            ;;
+        --output)
+            OUTPUT_FILE="$2"
+            if [[ "$OUTPUT_FILE" == *.txt ]]; then
+                SUMMARY_FILE="${OUTPUT_FILE%.txt}.md"
+            else
+                SUMMARY_FILE="${OUTPUT_FILE}.md"
+            fi
+            shift 2
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Cleanup old files
+[ -f "$SUMMARY_FILE" ] && rm "$SUMMARY_FILE"
+[ -f "$OUTPUT_FILE" ] && rm "$OUTPUT_FILE"
+
+# Run rustfmt
+cargo fmt --all -- --check 2>&1 | tee -a "$OUTPUT_FILE"
+
+# Create summary
 echo "### 🧹 rustfmt Check" >> "$SUMMARY_FILE"
-
-echo '```' >> "$OUTPUT_FILE"
-cargo fmt --all -- --check >> "$OUTPUT_FILE" 2>&1 || true
-echo '```' >> "$OUTPUT_FILE"
-
+echo "" >> "$SUMMARY_FILE"
+echo '```' >> "$SUMMARY_FILE"
 cat "$OUTPUT_FILE" >> "$SUMMARY_FILE"
+echo '```' >> "$SUMMARY_FILE"
+echo "" >> "$SUMMARY_FILE"
 
+# Check for formatting issues
 if grep -q "Diff in" "$OUTPUT_FILE"; then
     echo "❌ Code is not properly formatted. Please run \`cargo fmt\`." >> "$SUMMARY_FILE"
-    $NO_FAIL || exit 1
+    $NO_FAIL || STATUS=1
 else
     echo "✅ Code formatting is correct." >> "$SUMMARY_FILE"
 fi
+
+# Append to GitHub summary if enabled
+if [ "$NO_GITHUB" = false ] && [ -f "$GITHUB_STEP_SUMMARY" ]; then
+    cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+fi
+
+exit $STATUS
