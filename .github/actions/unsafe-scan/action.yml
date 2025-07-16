@@ -7,14 +7,12 @@ inputs:
     required: false
     default: "false"
 runs:
-  using: "docker"
-  image: "docker://ghcr.io/kitechsoftware/gcr-rust:latest"
-  args:
-    - bash
-    - -c
-    - |
-      if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-        unsafe-scan --no-fail
-      else
-        unsafe-scan
-      fi
+  using: "composite"
+  steps:
+    - run: |
+        if [[ "${{ inputs.no-fail }}" == "true" ]]; then
+          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest unsafe-scan --no-fail
+        else
+          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest unsafe-scan
+        fi
+      shell: bash
