@@ -11,8 +11,17 @@ runs:
   steps:
     - run: |
         if [[ "${{ inputs.no-fail }}" == "true" ]]; then
-          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest audit-deps --no-fail
+          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest audit-deps --no-fail --output audit-report
         else
-          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest audit-deps
+          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest audit-deps --output audit-report
         fi
+      shell: bash
+    - name: Upload audit report
+      uses: actions/upload-artifact@v4
+      with:
+        name: audit-report
+        path: audit-report.txt
+    - name: Append to GitHub Summary
+      run: |
+        cat audit-report.md >> "$GITHUB_STEP_SUMMARY"
       shell: bash
