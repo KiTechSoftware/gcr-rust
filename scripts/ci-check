@@ -37,7 +37,7 @@ run_script() {
     [ -f "$TMP_OUTPUT_NAME.md" ] && rm "$TMP_OUTPUT_NAME.md"
     [ -f "$TMP_OUTPUT_NAME.txt" ] && rm "$TMP_OUTPUT_NAME.txt"
     # run the script and return exit status
-    SCRIPT_STATUS=$($script --output "$TMP_OUTPUT_NAME")
+    SCRIPT_STATUS=$(bash "$script" --output "$TMP_OUTPUT_NAME")
     append_file_output "$TMP_OUTPUT_NAME.md"
     # if the script failed, update the overall status
     if [ $SCRIPT_STATUS -ne 0 ]; then

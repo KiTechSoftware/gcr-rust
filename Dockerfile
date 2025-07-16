@@ -35,4 +35,4 @@ RUN chmod +x /usr/local/bin/*
 # Set working directory
 WORKDIR /usr/src/app
 
-ENTRYPOINT ["bash"]
+ENTRYPOINT ["/usr/bin/env", "bash"]
