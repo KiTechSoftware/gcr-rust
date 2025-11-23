@@ -1,84 +1,86 @@
 #!/usr/bin/env bash
 set -e
 
-NO_FAIL_ARG=""
-if [[ "$1" == "--no-fail" ]]; then
-    NO_FAIL_ARG="--no-fail"
+STATUS=0
+NO_FAIL=false
+NO_GITHUB=false
+OUTPUT_FILE="security-output.txt"
+SUMMARY_FILE="security-output.md"
+TMP_OUTPUT_NAME="tmp-security-output"
+
+# Argument parsing
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-fail) NO_FAIL=true; shift ;;
+    --no-github) NO_GITHUB=true; shift ;;
+    --output)
+      OUTPUT_FILE="$2"
+      if [[ "$OUTPUT_FILE" == *.txt ]]; then
+        SUMMARY_FILE="${OUTPUT_FILE%.txt}.md"
+      else
+        SUMMARY_FILE="${OUTPUT_FILE}.md"
+      fi
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1"
+      exit 1
+      ;;
+  esac
+done
+
+# Cleanup old files
+[ -f "$SUMMARY_FILE" ] && rm "$SUMMARY_FILE"
+[ -f "$OUTPUT_FILE" ] && rm "$OUTPUT_FILE"
+
+append_output() { echo "$1" >> "$SUMMARY_FILE"; }
+append_file_output() { cat "$1" >> "$SUMMARY_FILE"; }
+line_break() { echo "" >> "$SUMMARY_FILE"; }
+divider() { echo "---" >> "$SUMMARY_FILE"; }
+
+run_script() {
+  local script="$1"
+
+  [ -f "$TMP_OUTPUT_NAME.md" ] && rm "$TMP_OUTPUT_NAME.md"
+  [ -f "$TMP_OUTPUT_NAME.txt" ] && rm "$TMP_OUTPUT_NAME.txt"
+
+  bash "$script" --output "$TMP_OUTPUT_NAME"
+  local SCRIPT_STATUS=$?
+
+  append_file_output "$TMP_OUTPUT_NAME.md"
+  line_break
+  divider
+  line_break
+
+  if [ $SCRIPT_STATUS -ne 0 ]; then
+    STATUS=$SCRIPT_STATUS
+  fi
+}
+
+# Header
+append_output "## Security Check Report"
+line_break
+append_output "_Combined results from audit-deps, cargo-deny, and unsafe-scan._"
+line_break
+divider
+line_break
+
+# Run the three security tools
+run_script audit-deps
+run_script cargo-deny
+run_script unsafe-scan
+
+# Final summary
+if [ $STATUS -ne 0 ] && [ "$NO_FAIL" = false ]; then
+  append_output "❌ Security check failed."
+  exit $STATUS
+else
+  append_output "✅ Security check completed."
 fi
 
-SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/summary.txt}"
-ARTIFACT_FILE="security-summary.md"
+# Append to GitHub summary if enabled
+if [ "$NO_GITHUB" = false ] && [ -f "$GITHUB_STEP_SUMMARY" ]; then
+  cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+fi
 
-# Clean previous output
-: > "$SUMMARY_FILE"
-: > "$ARTIFACT_FILE"
-
-# Track overall results
-AUDIT_RESULT="✅"
-DENY_RESULT="✅"
-UNSAFE_RESULT="✅"
-
-header() {
-    echo -e "$1\n" >> "$SUMMARY_FILE"
-    echo -e "$1\n" >> "$ARTIFACT_FILE"
-}
-
-divider() {
-    echo "---" >> "$SUMMARY_FILE"
-    echo "---" >> "$ARTIFACT_FILE"
-}
-
-append_file() {
-    if [[ -f "$1" ]]; then
-        cat "$1" >> "$SUMMARY_FILE"
-        cat "$1" >> "$ARTIFACT_FILE"
-    else
-        echo "_(file missing: $1)_" >> "$SUMMARY_FILE"
-        echo "_(file missing: $1)_" >> "$ARTIFACT_FILE"
-    fi
-}
-
-write_summary_line() {
-    echo "$1" >> "$SUMMARY_FILE"
-    echo "$1" >> "$ARTIFACT_FILE"
-}
-
-### Top-Level Summary Header
-header "## 🔐 Rust Security Checks"
-write_summary_line "_This summary includes results from audit, deny, and unsafe code scans._"
-write_summary_line ""
-
-### Cargo Audit
-divider
-header "### 📦 Dependency Vulnerability Scan (cargo audit)"
-
-audit-deps $NO_FAIL_ARG > audit-output.txt 2>&1 || AUDIT_RESULT="❗"
-append_file "audit-output.txt"
-
-### Cargo Deny
-divider
-header "### 📋 Dependency Policy Check (cargo deny)"
-
-# Correct cargo-deny invocation
-cargo deny check $NO_FAIL_ARG > deny-output.txt 2>&1 || DENY_RESULT="❌"
-append_file "deny-output.txt"
-
-### Unsafe Scan
-divider
-header "### 🧯 Unsafe Code Detection (cargo geiger)"
-
-unsafe-scan $NO_FAIL_ARG > geiger-output.txt 2>&1 || UNSAFE_RESULT="⚠️"
-append_file "geiger-output.txt"
-
-### Final Summary Block
-divider
-header "### 🧾 Final Summary"
-
-write_summary_line "| Check                 | Status |"
-write_summary_line "|-----------------------|--------|"
-write_summary_line "| Cargo Audit           | $AUDIT_RESULT |"
-write_summary_line "| Cargo Deny            | $DENY_RESULT |"
-write_summary_line "| Unsafe Code Detection | $UNSAFE_RESULT |"
-
-divider
-write_summary_line "✅ Security checks completed."
+exit $STATUS
