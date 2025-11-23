@@ -13,13 +13,13 @@ This image is designed for security scanning, cross-compilation, and packaging R
 
 ### ✅ Included Tools
 
-| Tool                  | Purpose |
-|-----------------------|---------|
-| `cargo audit`         | Check for vulnerable crates (RustSec) |
-| `cargo geiger`        | Detect `unsafe` code |
-| `cargo deny`          | Enforce license & dependency policy |
-| `cargo deb`           | Build `.deb` packages |
-| `cargo generate-rpm`  | Build `.rpm` packages |
+| Tool                    | Purpose |
+| ----------------------- |---------|
+| `cargo audit`           | Check for vulnerable crates (RustSec) |
+| `cargo geiger`          | Detect `unsafe` code |
+| `cargo deny`            | Enforce license & dependency policy |
+| `cargo deb`             | Build `.deb` packages |
+| `cargo generate-rpm`    | Build `.rpm` packages |
 | `gcc-aarch64-linux-gnu` | Cross-compile to `aarch64` |
 
 ---
@@ -28,12 +28,19 @@ This image is designed for security scanning, cross-compilation, and packaging R
 
 The following scripts are pre-installed in `/usr/local/bin`:
 
-| Script                 | Description |
-|------------------------|-------------|
-| `unsafe-scan.sh`       | Runs `cargo geiger`, formats and summarizes unsafe code |
-| `audit-deps.sh`        | Runs `cargo audit` with Markdown output |
-| `cargo-deny.sh`        | Runs `cargo deny check`, checks policy violations |
-| `security-check-all.sh`| Runs all of the above, creates combined summary/report |
+| Script         | Summary                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| unsafe-scan    | Scans for unsafe Rust code using `cargo geiger` and outputs a summary.                              |
+| audit-deps     | Runs `cargo audit` and reports vulnerable dependencies.                                             |
+| cargo-deny     | Runs `cargo deny check` for license, advisory, and policy violations.                               |
+| security-check | Runs all security tools (`audit-deps`, `cargo-deny`, `unsafe-scan`) and combines results.           |
+| bloat-report   | Analyzes binary size using `cargo bloat`.                                                           |
+| ci-check       | Full CI pipeline: runs all checks (security, lint, format, tests, coverage) and aggregates results. |
+| clippy-check   | Runs `cargo clippy` and fails on warnings.                                                          |
+| fmt-check      | Checks formatting with `cargo fmt --check`.                                                         |
+| nextest        | Runs tests using `cargo nextest`.                                                                   |
+| outdated-deps  | Checks for outdated dependencies using `cargo outdated`.                                            |
+| test-coverage  | Generates test coverage reports using `cargo llvm-cov`.                                             |
 
 > All scripts support the `--no-fail` flag to allow soft enforcement.
 
@@ -52,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run All Security Checks
-        run: security-check-all.sh --no-fail
+        run: security-check --no-fail
 
       - name: Upload Security Report
         uses: actions/upload-artifact@v4
@@ -68,7 +75,7 @@ jobs:
 You can also run the tools locally with Docker:
 
 ```bash
-docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest security-check-all.sh
+docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app ghcr.io/kitechsoftware/gcr-rust:latest security-check
 ```
 
 ---
@@ -90,4 +97,3 @@ Contributions are welcome! Feel free to submit issues, pull requests, or ideas.
 ## 📄 License
 
 [MIT](LICENSE)
-
