@@ -29,8 +29,13 @@ divider() {
 }
 
 append_file() {
-    cat "$1" >> "$SUMMARY_FILE"
-    cat "$1" >> "$ARTIFACT_FILE"
+    if [[ -f "$1" ]]; then
+        cat "$1" >> "$SUMMARY_FILE"
+        cat "$1" >> "$ARTIFACT_FILE"
+    else
+        echo "_(file missing: $1)_" >> "$SUMMARY_FILE"
+        echo "_(file missing: $1)_" >> "$ARTIFACT_FILE"
+    fi
 }
 
 write_summary_line() {
@@ -47,24 +52,22 @@ write_summary_line ""
 divider
 header "### 📦 Dependency Vulnerability Scan (cargo audit)"
 
-audit-deps $NO_FAIL_ARG || AUDIT_RESULT="❗"
-
+audit-deps $NO_FAIL_ARG > audit-output.txt 2>&1 || AUDIT_RESULT="❗"
 append_file "audit-output.txt"
 
 ### Cargo Deny
 divider
 header "### 📋 Dependency Policy Check (cargo deny)"
 
-cargo-deny $NO_FAIL_ARG || DENY_RESULT="❌"
-
+# Correct cargo-deny invocation
+cargo deny check $NO_FAIL_ARG > deny-output.txt 2>&1 || DENY_RESULT="❌"
 append_file "deny-output.txt"
 
 ### Unsafe Scan
 divider
 header "### 🧯 Unsafe Code Detection (cargo geiger)"
 
-unsafe-scan $NO_FAIL_ARG || UNSAFE_RESULT="⚠️"
-
+unsafe-scan $NO_FAIL_ARG > geiger-output.txt 2>&1 || UNSAFE_RESULT="⚠️"
 append_file "geiger-output.txt"
 
 ### Final Summary Block
@@ -79,4 +82,3 @@ write_summary_line "| Unsafe Code Detection | $UNSAFE_RESULT |"
 
 divider
 write_summary_line "✅ Security checks completed."
-
