@@ -2,89 +2,94 @@
 set -e
 
 STATUS=0
-SCRIPT_STATUS=0
 NO_FAIL=false
 NO_GITHUB=false
-ARTIFACT_FILE="ci-artifact.md"
+OUTPUT_FILE="ci-output.txt"
+SUMMARY_FILE="ci-output.md"
 TMP_OUTPUT_NAME="tmp-ci-output"
-for arg in "$@"; do
-    if [[ "$arg" == "--no-fail" ]]; then
-        NO_FAIL=true
-    elif [[ "$arg" == "--no-github" ]]; then
-        NO_GITHUB=true
-    fi
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-fail) NO_FAIL=true; shift ;;
+    --no-github) NO_GITHUB=true; shift ;;
+    --output)
+      OUTPUT_FILE="$2"
+      if [[ "$OUTPUT_FILE" == *.txt ]]; then
+        SUMMARY_FILE="${OUTPUT_FILE%.txt}.md"
+      else
+        SUMMARY_FILE="${OUTPUT_FILE}.md"
+      fi
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1"
+      exit 1
+      ;;
+  esac
 done
 
 # Cleanup old files
-[ -f "$ARTIFACT_FILE" ] && rm "$ARTIFACT_FILE"
+[ -f "$SUMMARY_FILE" ] && rm "$SUMMARY_FILE"
+[ -f "$OUTPUT_FILE" ] && rm "$OUTPUT_FILE"
 
-append_output() {
-    echo "$1" >> "$ARTIFACT_FILE"
-}
-append_file_output() {
-    cat "$1" >> "$ARTIFACT_FILE"
-}
-line_break() {
-    echo "" >> "$ARTIFACT_FILE"
-}
-divider() {
-    echo "---" >> "$ARTIFACT_FILE"
-}
+append_output() { echo "$1" >> "$SUMMARY_FILE"; }
+append_file_output() { cat "$1" >> "$SUMMARY_FILE"; }
+line_break() { echo "" >> "$SUMMARY_FILE"; }
+divider() { echo "---" >> "$SUMMARY_FILE"; }
 
 run_script() {
-    local script="$1"
-    # Cleanup old temporary files
-    [ -f "$TMP_OUTPUT_NAME.md" ] && rm "$TMP_OUTPUT_NAME.md"
-    [ -f "$TMP_OUTPUT_NAME.txt" ] && rm "$TMP_OUTPUT_NAME.txt"
-    # run the script and return exit status
-    SCRIPT_STATUS=$(bash "$script" --output "$TMP_OUTPUT_NAME")
-    append_file_output "$TMP_OUTPUT_NAME.md"
-    # if the script failed, update the overall status
-    if [ $SCRIPT_STATUS -ne 0 ]; then
-        STATUS=$SCRIPT_STATUS
-    fi
+  local script="$1"
+
+  # Clean up old temp outputs
+  [ -f "$TMP_OUTPUT_NAME.md" ] && rm "$TMP_OUTPUT_NAME.md"
+  [ -f "$TMP_OUTPUT_NAME.txt" ] && rm "$TMP_OUTPUT_NAME.txt"
+
+  # Execute the child script and force it to use our temporary output name
+  bash "$script" --output "$TMP_OUTPUT_NAME"
+  local SCRIPT_STATUS=$?
+
+  # Append its Markdown summary into the master summary
+  append_file_output "$TMP_OUTPUT_NAME.md"
+  line_break
+  divider
+  line_break
+
+  # Update overall status
+  if [ $SCRIPT_STATUS -ne 0 ]; then
+    STATUS=$SCRIPT_STATUS
+  fi
 }
 
-# Start summary
-append_output "## 🔧 Full CI Check Report"
+# Start header
+append_output "## Full CI Check Report"
 line_break
-append_output "_Includes security, linting, tests, and formatting checks._"
+append_output "_Includes security checks, linting, formatting, tests, and coverage._"
 line_break
 divider
 line_break
 
-# Run tools
+# Run all tools in order
 run_script audit-deps
-line_break
-divider
 run_script cargo-deny
-line_break
-divider
 run_script unsafe-scan
-line_break
-divider
 run_script clippy-check
-line_break
-divider
 run_script fmt-check
-line_break
-divider
 run_script nextest
-line_break
-divider
 run_script test-coverage
-line_break
 
-
-# Final summary
-if [ $STATUS -ne 0 ] && [ $NO_FAIL = false ]; then
-    echo "❌ CI check failed. See above for details." >> "$ARTIFACT_FILE"
+# Final result block
+if [ $STATUS -ne 0 ] && [ "$NO_FAIL" = false ]; then
+  append_output "❌ CI check failed."
+  exit_code=$STATUS
 else
-    echo "✅ CI check completed. See above for results." >> "$ARTIFACT_FILE"
+  append_output "✅ CI check completed."
+  exit_code=0
 fi
 
-if [ -f "$GITHUB_STEP_SUMMARY" ]; then
-    cat "$GITHUB_STEP_SUMMARY" >> "$ARTIFACT_FILE"
+# Append to GitHub summary if allowed
+if [ "$NO_GITHUB" = false ] && [ -f "$GITHUB_STEP_SUMMARY" ]; then
+  cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
 fi
 
-exit $STATUS
+exit $exit_code
